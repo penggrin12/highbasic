@@ -1,287 +1,390 @@
+# Forked edits by penggrin12 licensed under MIT.
+# Full license text in LICENSE.
+
 # 2025 BISCGAMES
 # --- DISCORD: biscgames
 # --- GITHUB: biscgames
 # PLEASE DO NOT COPY ANY OF MY CODE, THANK YOU
 # YOU MAY ONLY FORK THE REPOSITORY FOR MAJOR CODE CHANGES, AND NOTHING MINOR
 
-# var message "Hello, World!"
-# println $message
-
-from shlex import split as lexSplit
-from sys import argv as args
+from shlex import split as lex_split
+from sys import argv as args, exit
 import traceback
+from typing import Any, Callable, Iterable
 
 cut = False
-variables = {
-    "!ver": "1.3_1",
-    "!newline": "\n",
-    "!emptyline": "",
-    "!$": "$"
-}
-functions = {}
+variables: dict[str, Any] = {"!ver": "1.3_1", "!newline": "\n", "!emptyline": "", "!$": "$"}
+functions: dict[str, Callable]
 classes = {}
 arguments = []
+macros: dict[str, list[str]] = {"exampleMacro": ['println "Hello, World!"']}
 
-def interpretEach(code:list):
-    for i,token in enumerate(code):
-        token = token.strip()
+
+def interpret_each(code: Iterable[str]) -> None:
+    for token in code:
+        token: str = token.strip()
         if not token:
             continue
-        tokenSplit = lexSplit(token," ")
+
+        tokenSplit: list[str] = lex_split(token, False)  # TODO: treat : as actual comments
         try:
             functions[tokenSplit[0]](tokenSplit[1:])
         except Exception as e:
-            traceback.print_exception(e)
+            traceback.print_exception(e)  # TODO: why not just let it raise?
 
-def convertToNum(value:str):
+
+def convert_to_num(value: str) -> int | float | str:
     try:
         return int(value)
     except ValueError:
         try:
             return float(value)
-        except:
+        except ValueError:
             return value
-def isReferencingVar(value:str):
+
+
+def is_referencing_var(value: str) -> bool:
     return value.startswith("$")
-def quote(value):
-    try: return float(value)
-    except: return "\"{}\"".format(value)
-def testForVariable(value:str):
-    if isReferencingVar(value):
-        while isReferencingVar(value):
+
+
+def test_for_variable(value: str):
+    if is_referencing_var(value):
+        while is_referencing_var(value):
             pointer = 0
             while value[pointer] == "$":
                 pointer += 1
             val = variables[value[pointer:]]
-            value = value.replace(value[pointer:],str(val))
+            value = value.replace(value[pointer:], str(val))
             value = value[1:]
     else:
         if ">>" in value:
             classRef = value.split(">>")
             if classRef[0] in classes:
-                return classes[classRef[0]][classRef[1]] if not isinstance(classes[classRef[0]][classRef[1]],list) else "MACRO"
+                return (
+                    classes[classRef[0]][classRef[1]]
+                    if not isinstance(classes[classRef[0]][classRef[1]], list)
+                    else "MACRO"
+                )
             else:
-                return variables[classRef[0]][classRef[1]] if not isinstance(variables[classRef[0]][classRef[1]],list) else "MACRO"
+                return (
+                    variables[classRef[0]][classRef[1]]
+                    if not isinstance(variables[classRef[0]][classRef[1]], list)
+                    else "MACRO"
+                )
     return value
-def println(arg:list):
-    print(testForVariable(arg[0]))
-def var(arg:list):
-    val = testForVariable(arg[0])
-    value = convertToNum(testForVariable(arg[1])) if str(testForVariable(arg[1])).isdigit() else testForVariable(arg[1])
-    if not "." in val:
-        if not val.startswith("!") or not val in variables:
+
+
+def println(args: list) -> None:
+    print(test_for_variable(args[0]))
+
+
+def var(args: list) -> None:
+    val = test_for_variable(args[0])
+    value = (
+        convert_to_num(test_for_variable(args[1]))
+        if str(test_for_variable(args[1])).isdigit()
+        else test_for_variable(args[1])
+    )
+    if "." not in val:
+        if not val.startswith("!") or val not in variables:
             variables[val] = value
-        else: 
-            print("Attempt to modify read-only variable handled with this message. Variable: {}".format(arg[0]))
+        else:
+            print(
+                "Attempt to modify read-only variable handled with this message. Variable: {}".format(
+                    args[0]
+                )
+            )
     else:
-        item,prop = val.split(".",1)
-        if not item in variables:
+        item, prop = val.split(".", 1)
+        if item not in variables:
             print("o0w =eo0ooot0-iii-kfe")
             return
         variables[item][prop] = value
-def operator(arg:list):
-    left = testForVariable(arg[0])
-    if isinstance(variables[left],str):
-        rights = arg[1:-1]
+
+
+def operator(args: list) -> None:
+    left = test_for_variable(args[0])
+    if isinstance(variables[left], str):
+        rights = args[1:-1]
     else:
-        rights = [convertToNum(testForVariable(s)) for s in arg[1:-1]]
-    op = arg[-1]
+        rights = [convert_to_num(test_for_variable(s)) for s in args[1:-1]]
+    op = args[-1]
 
     for right in rights:
-        rightVal = testForVariable(str(right))
-        if isinstance(variables[left],str):
+        rightVal = test_for_variable(str(right))
+        if isinstance(variables[left], str):
             if op == "+":
                 variables[left] += str(rightVal)
             elif op == "*":
-                variables[left] = variables[left] * convertToNum(rightVal)
+                variables[left] = variables[left] * convert_to_num(rightVal)
         else:
             if op == "+":
-                variables[left] += convertToNum(rightVal)
+                variables[left] += convert_to_num(rightVal)
             elif op == "-":
-                variables[left] -= convertToNum(rightVal)
+                variables[left] -= convert_to_num(rightVal)
             elif op == "*":
-                variables[left] *= convertToNum(rightVal)
+                variables[left] *= convert_to_num(rightVal)
             elif op == "/":
-                variables[left] /= convertToNum(rightVal)
+                variables[left] /= convert_to_num(rightVal)
             elif op == "%":
-                variables[left] %= convertToNum(rightVal)
-macros = {
-    "exampleMacro": ["println \"Hello, World!\""]
-}
-def passfunc(arg:list):
+                variables[left] %= convert_to_num(rightVal)
+
+
+def noop(_) -> None:
     pass
-def macro(arg:list):
+
+
+def macro(args: list) -> None:
     global arguments
-    val = testForVariable(arg[0])
-    if not val in macros:
+    val = test_for_variable(args[0])
+    if val not in macros:
         if "." in val:
             item = val.split(".")[0]
             var = val.split(".")[1]
 
-            arr = list(s.replace("this",item) for s in (classes[item][var] if item in classes else variables[item][var]))
-            if len(arg) > 2: arguments = arg[2:]
-            interpretEach(arr)
+            arr = list(
+                s.replace("this", item)
+                for s in (classes[item][var] if item in classes else variables[item][var])
+            )
+            if len(args) > 2:
+                arguments = args[2:]
+            interpret_each(arr)
         else:
             macros[val] = []
     else:
-        interpretEach(macros[val])
-def inItem(arg:list):
-    item = testForVariable(arg[1])
-    if arg[0] == "macro":
-        macros[item].append(" ".join(arg[2:]))
-    else:
-        if not arg[0] in classes[item]:
-            classes[item][arg[0]] = []
-        if (len(arg) > 2):
-            classes[item][arg[0]].append(" ".join(arg[2:]))
+        interpret_each(macros[val])
 
-def readln(arg:list):
-    if not arg[1].startswith("!"): variables[arg[1]] = input(arg[0])
-    else: print("Attempt to modify read-only variable handled with this message. Variable: {}".format(arg[1]))
-def ifhb(arg:list):
-    true = " ".join(arg[2:])
-    if int(variables[testForVariable(arg[0])]) == int(testForVariable(arg[1])):
-        interpretEach([true])
-def unless(arg:list):
-    true = " ".join(arg[2:])
-    if int(variables[testForVariable(arg[0])]) != int(testForVariable(arg[1])):
-        interpretEach([true])
-def ifStr(arg:list):
-    true = " ".join(arg[2:])
-    if str(variables[testForVariable(arg[0])]) == str(testForVariable(arg[1])):
-        interpretEach([true])
-def unlessStr(arg:list):
-    true = " ".join(arg[2:])
-    if str(variables[testForVariable(arg[0])]) != str(testForVariable(arg[1])):
-        interpretEach([true])
-def string(arg:list):
-    val = testForVariable(arg[0])
+
+def in_item(args: list) -> None:
+    item = test_for_variable(args[1])
+    if args[0] == "macro":
+        macros[item].append(" ".join(args[2:]))
+    else:
+        if args[0] not in classes[item]:
+            classes[item][args[0]] = []
+        if len(args) > 2:
+            classes[item][args[0]].append(" ".join(args[2:]))
+
+
+def readln(args: list) -> None:
+    if not args[1].startswith("!"):
+        variables[args[1]] = input(args[0])
+    else:
+        print(
+            "Attempt to modify read-only variable handled with this message. Variable: {}".format(
+                args[1]
+            )
+        )
+
+
+def equal_int(args: list) -> None:
+    true = " ".join(args[2:])
+    if int(variables[test_for_variable(args[0])]) == int(test_for_variable(args[1])):
+        interpret_each([true])
+
+
+def unless_int(args: list) -> None:
+    true = " ".join(args[2:])
+    if int(variables[test_for_variable(args[0])]) != int(test_for_variable(args[1])):
+        interpret_each([true])
+
+
+def equal_str(args: list) -> None:
+    true = " ".join(args[2:])
+    if str(variables[test_for_variable(args[0])]) == str(test_for_variable(args[1])):
+        interpret_each([true])
+
+
+def unless_str(args: list) -> None:
+    true = " ".join(args[2:])
+    if str(variables[test_for_variable(args[0])]) != str(test_for_variable(args[1])):
+        interpret_each([true])
+
+
+def string(args: list) -> None:
+    val = test_for_variable(args[0])
     if not val.startswith("!"):
-        variables[val] = str(testForVariable(arg[1]))
-    else: 
-        print("Attempt to modify read-only variable handled with this message. Variable: {}".format(arg[0]))
-def num(arg:list):
-    val = testForVariable(arg[0])
+        variables[val] = str(test_for_variable(args[1]))
+    else:
+        print(
+            "Attempt to modify read-only variable handled with this message. Variable: {}".format(
+                args[0]
+            )
+        )
+
+
+def num(args: list) -> None:
+    val = test_for_variable(args[0])
     if not val.startswith("!"):
-        variables[val] = convertToNum(testForVariable(arg[1]))
-    else: 
-        print("Attempt to modify read-only variable handled with this message. Variable: {}".format(arg[0]))
-def toNum(arg:list):
-    variables[testForVariable(arg[0])] = convertToNum(variables[arg[0]])
-def toString(arg:list):
-    variables[testForVariable(arg[0])] = str(variables[arg[0]])
-def ifDynamic(arg:list):
+        variables[val] = convert_to_num(test_for_variable(args[1]))
+    else:
+        print(
+            "Attempt to modify read-only variable handled with this message. Variable: {}".format(
+                args[0]
+            )
+        )
+
+
+def to_num(args: list) -> None:
+    variables[test_for_variable(args[0])] = convert_to_num(variables[args[0]])
+
+
+def to_string(args: list) -> None:
+    variables[test_for_variable(args[0])] = str(variables[args[0]])
+
+
+def dynamic_if(args: list) -> None:
     pass
-def unlessDynamic(arg:list):
+
+
+def dynamic_unless(args: list) -> None:
     pass
-def printtc(arg:list):
-    print(testForVariable(arg[0]),end="")
-def module(arg:list):
-    val = testForVariable(arg[0])
-    if len(arg) > 0:
+
+
+def print_(args: list) -> None:
+    print(test_for_variable(args[0]), end="")
+
+
+def module(args: list) -> None:
+    val = test_for_variable(args[0])
+    if len(args) > 0:
         try:
-            with open(val,"r") as f:
+            with open(val, "r") as f:
                 lines = f.readlines()
                 if lines[0].strip() == "module":
-                    interpretEach(lines[1:])
+                    interpret_each(lines[1:])
                 else:
-                    print("\"Module\" {} is not a valid module. (put \"module\" at the first line of the file to confirm it is a module)".format(arg[0]))
+                    print(
+                        '"Module" {} is not a valid module. (put "module" at the first line of the file to confirm it is a module)'.format(
+                            args[0]
+                        )
+                    )
         except Exception as e:
-            print("Filepath \"{}\" cannot be run. {}".format(args[1],e))
-def destroy(arg:list):
-    if arg[0] == "macro":
-        if arg[-1] == "r":
-            macros[testForVariable(arg[1])] = []
+            print('Filepath "{}" cannot be run. {}'.format(args[1], e))
+
+
+def destroy(args: list) -> None:
+    if args[0] == "macro":
+        if args[-1] == "r":
+            macros[test_for_variable(args[1])] = []
         else:
-            del macros[testForVariable(arg[1])]
-    if arg[0] == "var":
-        del variables[testForVariable(arg[1])]
-def concat(arg:list):
-    rights = arg[1:]
+            del macros[test_for_variable(args[1])]
+    if args[0] == "var":
+        del variables[test_for_variable(args[1])]
+
+
+def concat(args: list) -> None:
+    rights = args[1:]
     for right in rights:
-        variables[testForVariable(arg[0])] += testForVariable(right)
-def iterate(arg:list):
+        variables[test_for_variable(args[0])] += test_for_variable(right)
+
+
+def iterate(args: list) -> None:
     global cut
     cut = False
-    i = int(testForVariable(arg[0]))
-    while i < int(testForVariable(arg[1])) and not cut:
-        interpretEach(macros[testForVariable(arg[-1])])
+    i = int(test_for_variable(args[0]))
+    while i < int(test_for_variable(args[1])) and not cut:
+        interpret_each(macros[test_for_variable(args[-1])])
         i += 1
-def nick(arg:list):
-    if not testForVariable(arg[0]) == "macro":
-        functions[testForVariable(arg[1])] = functions[testForVariable(arg[0])]
-        del functions[testForVariable(arg[0])]
+
+
+def nick(args: list):
+    if not test_for_variable(args[0]) == "macro":
+        functions[test_for_variable(args[1])] = functions[test_for_variable(args[0])]
+        del functions[test_for_variable(args[0])]
     else:
-        macros[testForVariable(arg[2])] = macros[testForVariable(arg[1])]
-        del macros[testForVariable(arg[1])]
-def cutFunc(arg:list):
+        macros[test_for_variable(args[2])] = macros[test_for_variable(args[1])]
+        del macros[test_for_variable(args[1])]
+
+
+def cut_func(args: list):
     global cut
     cut = True
-def classFor(arg:list):
-    global arguments
-    val = testForVariable(arg[0])
-    variables[val] = classes[testForVariable(arg[1])]
-    if "classConstructor" in variables[val].keys():
-        if len(arg)>2: arguments = arg[2:]
-        interpretEach(s.replace("this",val) for s in variables[val]["classConstructor"])
-def getArg(arg:list):
-    global arguments
-    var([arg[0],arguments[int(testForVariable(arg[1]))]])
 
-def classFunc(arg:list):
-    classes[testForVariable(arg[0])] = {}
-def getClassVal(arg:list):
-    val = testForVariable(arg[0])
-    arg1 = testForVariable(arg[1])
-    variables[testForVariable(arg[-1])] = classes[val][arg1] if val in classes else variables[val][arg1]
-functions = {
-    "var":var,
-    "operator":operator,
-    "println":println,
-    ":":passfunc,
-    "#":passfunc,
-    "group": passfunc,
-    "macro":macro,
-    "in":inItem,
-    "readln":readln,
-    "equalInt": ifhb,
-    "unlessInt": unless,
-    "equalString": ifStr,
-    "unlessString": unlessStr,
-    "if": ifDynamic,
-    "unless": unlessDynamic,
+
+def class_for(args: list):
+    global arguments
+    val = test_for_variable(args[0])
+    variables[val] = classes[test_for_variable(args[1])]
+    if "classConstructor" in variables[val].keys():
+        if len(args) > 2:
+            arguments = args[2:]
+        interpret_each(s.replace("this", val) for s in variables[val]["classConstructor"])
+
+
+def get_arg(args: list):
+    global arguments
+    var([args[0], arguments[int(test_for_variable(args[1]))]])
+
+
+def class_func(args: list):
+    classes[test_for_variable(args[0])] = {}
+
+
+def get_class_val(args: list):
+    val = test_for_variable(args[0])
+    arg1 = test_for_variable(args[1])
+    variables[test_for_variable(args[-1])] = (
+        classes[val][arg1] if val in classes else variables[val][arg1]
+    )
+
+
+functions: dict[str, Callable] = {
+    "var": var,
+    "operator": operator,
+    "println": println,
+    ":": noop,
+    "#": noop,
+    "group": noop,
+    "macro": macro,
+    "in": in_item,
+    "readln": readln,
+    "equalInt": equal_int,
+    "unlessInt": unless_int,
+    "equalString": equal_str,
+    "unlessString": unless_str,
+    "if": dynamic_if,
+    "unless": dynamic_unless,
     "string": string,
     "num": num,
-    "toNum": toNum,
-    "toString": toString,
-    "print": printtc,
+    "toNum": to_num,
+    "toString": to_string,
+    "print": print_,
     "module": module,
     "del": destroy,
     "concat": concat,
     "iterate": iterate,
     "nick": nick,
-    "cut": cutFunc,
-    "classFor": classFor,
-    "class": classFunc,
-    "classVal": getClassVal,
-    "arg": getArg
+    "cut": cut_func,
+    "classFor": class_for,
+    "class": class_func,
+    "classVal": get_class_val,
+    "arg": get_arg,
 }
 
-def main():
+
+def main() -> None:
+    code: list[str] = []
+
     if len(args) < 2:
-        code = input("Welcome to HighBasic\n!ver: {}\nAdd an argument for filename next time to interpret a .hb file!\n>> ".format(variables["!ver"])).split("\n")
+        code = input(
+            f"Welcome to HighBasic\n!ver: {variables['!ver']}\nAdd an argument for filename next time to interpret a .hb file!\n>> "
+        ).split("\n")
     else:
         try:
-            with open(args[1],"r") as f:
-                lines = f.readlines()
+            with open(args[1], "r") as f:
+                lines: list[str] = f.readlines()
                 if lines[0].strip() == "module":
-                    code = ["println \"Modules cannot run by theirselves and must be run by a main .hb file.\""]
+                    code = [
+                        'println "Modules cannot run by theirselves and must be run by a main .hb file."'
+                    ]
                 else:
                     code = lines
         except Exception as e:
-            print("Filepath \"{}\" cannot be run. {}".format(args[1],e))
+            print(f'Filepath "{args[1]}" cannot be run. {e}')
             exit(1)
-    interpretEach(code)
+
+    interpret_each(code)
 
 
 if __name__ == "__main__":
