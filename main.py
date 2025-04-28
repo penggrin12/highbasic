@@ -288,7 +288,7 @@ def iterate(args: list) -> None:
         i += 1
 
 
-def nick(args: list):
+def nick(args: list) -> None:
     if not test_for_variable(args[0]) == "macro":
         functions[test_for_variable(args[1])] = functions[test_for_variable(args[0])]
         del functions[test_for_variable(args[0])]
@@ -297,12 +297,12 @@ def nick(args: list):
         del macros[test_for_variable(args[1])]
 
 
-def cut_func(args: list):
+def cut_func(args: list) -> None:
     global cut
     cut = True
 
 
-def class_for(args: list):
+def class_for(args: list) -> None:
     global arguments
     val = test_for_variable(args[0])
     variables[val] = classes[test_for_variable(args[1])]
@@ -312,16 +312,16 @@ def class_for(args: list):
         interpret_each(s.replace("this", val) for s in variables[val]["classConstructor"])
 
 
-def get_arg(args: list):
+def get_arg(args: list) -> None:
     global arguments
     var([args[0], arguments[int(test_for_variable(args[1]))]])
 
 
-def class_func(args: list):
+def class_func(args: list) -> None:
     classes[test_for_variable(args[0])] = {}
 
 
-def get_class_val(args: list):
+def get_class_val(args: list) -> None:
     val = test_for_variable(args[0])
     arg1 = test_for_variable(args[1])
     variables[test_for_variable(args[-1])] = (
